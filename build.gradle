@@ -1,38 +1,61 @@
 buildscript {
     repositories {
         maven { url = 'https://files.minecraftforge.net/maven' }
+        maven { url = 'https://dist.creeper.host/Sponge/maven' }
+        maven { url = "https://oss.sonatype.org/content/repositories/snapshots/" }
         jcenter()
         mavenCentral()
     }
     dependencies {
         classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '3.+', changing: true
-        // Make sure this version matches the one included in Kotlin for Forge
+        classpath group: 'org.spongepowered', name: 'mixingradle', version: '0.7-SNAPSHOT'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.4.10"
     }
 }
+
+plugins {
+    id "com.diffplug.gradle.spotless" version "4.5.1"
+}
+
+
 apply plugin: 'net.minecraftforge.gradle'
 apply plugin: 'kotlin'
+apply plugin: 'eclipse'
+apply plugin: 'org.spongepowered.mixin'
+apply plugin: 'idea'
 
-version = '1.0.0'
-group = 'example.examplemod'
-archivesBaseName = 'examplemod'
+
+ext.configFile = file('build.properties')
+ext.config = parseConfig(configFile)
+
+version = "${config.mc_version}-${config.build_number}"
+group = "xyz.kamefrede.${config.mod_id}" // http://maven.apache.org/guides/mini/guide-naming-conventions.html
+archivesBaseName = config.mod_name
+
 
 sourceCompatibility = targetCompatibility = compileJava.sourceCompatibility = compileJava.targetCompatibility = '1.8'
 
+mixin {
+    add sourceSets.main, "slimesnsteam.refmap.json"
+}
+
+test {
+    useJUnitPlatform()
+}
+
+
 minecraft {
-    // Change to your preferred mappings
     mappings channel: 'snapshot', version: '20200916-1.16.2'
-    // Add your AccessTransformer
-    // accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
 
     runs {
         client {
             workingDirectory project.file('run')
-
             property 'forge.logging.console.level', 'debug'
-
+            properties 'fml.earlyprogresswindow': 'false'
+            property 'mixin.env.disableRefMap', 'true'
+            arg "-mixin.config=" + config.mod_id + ".mixins.json"
             mods {
-                examplemod {
+                slimesnsteam {
                     source sourceSets.main
                 }
             }
@@ -42,9 +65,12 @@ minecraft {
             workingDirectory project.file('run')
 
             property 'forge.logging.console.level', 'debug'
+            property 'mixin.env.disableRefMap', 'true'
+            arg "-mixin.config=" + config.mod_id + ".mixins.json"
+            singleInstance(true)
 
             mods {
-                examplemod {
+                slimesnsteam {
                     source sourceSets.main
                 }
             }
@@ -53,12 +79,13 @@ minecraft {
         data {
             workingDirectory project.file('run')
 
-            property 'forge.logging.console.level', 'debug'
-
-            args '--mod', 'examplemod', '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources')
+            properties 'fml.earlyprogresswindow': 'false'
+            property 'mixin.env.disableRefMap', 'true'
+            arg "-mixin.config=" + config.mod_id + ".mixins.json"
+            args '--mod', 'slimesnsteam', '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources')
 
             mods {
-                examplemod {
+                slimesnsteam {
                     source sourceSets.main
                 }
             }
@@ -71,14 +98,51 @@ repositories {
         name = 'Kotlin for Forge'
         url = 'https://thedarkcolour.github.io/KotlinForForge/'
     }
+    maven {
+        // for Patchouli
+        name = "blamejared"
+        url "http://maven.blamejared.com/"
+    }
+    maven {
+        // for JEI
+        name = "promwml16"
+        url = "http://dvs1.progwml6.com/files/maven"
+    }
+
+    maven {
+        name = "curios"
+        url = "https://maven.theillusivec4.top/"
+    }
 }
 
 dependencies {
     // Use the latest version of Minecraft Forge
-    minecraft 'net.minecraftforge:forge:1.16.3-34.1.22'
+    minecraft group: 'net.minecraftforge', name: 'forge', version: "${config.mc_version}-35.0.2"
 
-    // Use the latest version of KotlinForForge
-    fg.deobf(implementation('thedarkcolour:kotlinforforge:1.6.2'))
+    annotationProcessor 'org.spongepowered:mixin:0.8.1:processor'
+
+    compileOnly fg.deobf("vazkii.patchouli:Patchouli:1.16.2-47-SNAPSHOT:api")
+    runtimeOnly fg.deobf("vazkii.patchouli:Patchouli:1.16.2-47-SNAPSHOT")
+
+    compileOnly fg.deobf("mezz.jei:jei-1.16.2:7.3.2.25:api")
+    runtimeOnly fg.deobf("mezz.jei:jei-1.16.2:7.3.2.25")
+
+    compileOnly fg.deobf("top.theillusivec4.curios:curios-forge:1.16.3-4.0.1.0:api")
+    runtimeOnly fg.deobf("top.theillusivec4.curios:curios-forge:1.16.3-4.0.1.0")
+
+    implementation 'thedarkcolour:kotlinforforge:1.6.2'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.6.1'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.6.1'
+}
+
+// Prevent Mixin annotation processor from getting into IDEA's annotation processor settings
+if (System.getProperty("idea.sync.active") == "true") {
+    afterEvaluate {
+        tasks.withType(JavaCompile).all {
+            it.options.annotationProcessorPath = files()
+        }
+    }
 }
 
 compileKotlin {
@@ -94,16 +158,86 @@ sourceSets.main.resources {
     srcDirs 'src/generated/resources/'
 }
 
+processResources {
+    // replace stuff in mods.toml, nothing else
+    from(sourceSets.main.resources.srcDirs) {
+        include 'META-INF/mods.toml'
+
+        // replace version and mcversion
+        expand 'version': project.version
+    }
+
+    // copy everything else, thats not the mods.toml
+    from(sourceSets.main.resources.srcDirs) {
+        exclude 'META-INF/mods.toml', '**/psd/**'
+    }
+}
+
+task srcJar(type: Jar) {
+    from(sourceSets.main.java)
+    classifier = 'sources'
+}
+
+artifacts {
+    archives srcJar
+}
+
 jar {
+    archiveName = "${baseName} ${version}.${extension}"
+
     manifest {
         attributes([
-                "Specification-Title": "examplemod",
-                "Specification-Vendor": "examplemodsareus",
-                "Specification-Version": "1", // We are version 1 of ourselves
-                "Implementation-Title": project.name,
-                "Implementation-Version": "${version}",
-                "Implementation-Vendor" :"examplemodsareus",
-                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+                "Specification-Title"     : "${config.mod_id}",
+                "Specification-Vendor"    : "kamefrede",
+                "Specification-Version"   : "1", // We are version 1 of ourselves
+                "Implementation-Title"    : "${config.mod_id}",
+                "Implementation-Version"  : "${version}",
+                "Implementation-Vendor"   : "kamefrede",
+                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+                "MixinConfigs"            : "${config.mod_id}.mixins.json"
         ])
     }
 }
+
+spotless {
+    enforceCheck = false
+    kotlin {
+        // This path needs to be relative to each project
+        target fileTree('.') {
+            include '**/*.kt'
+            exclude '**/.gradle/**'
+        }
+        // see https://github.com/shyiko/ktlint#standard-rules
+        ktlint().userData(['max_line_length': '100', 'insert_final_newline': 'true'])
+        licenseHeaderFile "${rootDir}/spotless/license_template.txt"  // License header file
+    }
+
+    groovyGradle {
+        target '*.gradle'
+        greclipse().configFile(rootProject.file('spotless/formatter.properties'))
+        endWithNewline()
+        paddedCell() // recommended hack to keep gradle files tidy
+    }
+
+    java {
+        indentWithTabs()
+        licenseHeaderFile('gradle/license_template.txt')
+        eclipse().configFile 'spotless/eclipseformat.xml'
+        removeUnusedImports()
+        importOrderFile 'spotless/eclipse.importorder'
+    }
+}
+
+def parseConfig(File config) {
+    if(config.exists()){
+        config.withReader {
+            def prop = new Properties()
+            prop.load(it)
+            return (new ConfigSlurper().parse(prop))
+        }
+    } else {
+        return null
+    }
+}
+
+defaultTasks 'clean', 'runData', 'spotlessKotlinCheck', 'build'

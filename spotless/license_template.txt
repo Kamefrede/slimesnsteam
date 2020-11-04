@@ -1,0 +1,8 @@
+/*
+ * This class is distributed as part of the Slimes 'n' Steam Mod.
+ * Get the Source Code in github:
+ * https://github.com/Kamefrede/slimesnsteam
+ *
+ * Slimes 'n' Steam is Open Source and distributed under the
+ * GNU GPLv3 License: https://www.gnu.org/licenses/gpl-3.0.html
+ */

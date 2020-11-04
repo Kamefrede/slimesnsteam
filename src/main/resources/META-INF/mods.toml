@@ -1,28 +1,41 @@
-# Make sure this is set to "kotlinforforge"
-modLoader="kotlinforforge"
-# Make sure this is set to the appropriate version range
-loaderVersion="[1.6,)" # Require at least 1.6.x
-# License is REQUIRED after 1.16
-license='LGPL'
+modLoader = "kotlinforforge"
+loaderVersion = "[1.6,)" # Require at least 1.6.x
+license = 'GNU GPLv3'
+issueTrackerURL = "https://github.com/Kamefrede/slimesnsteam/issues"
 
 [[mods]]
-modId="examplemod"
-version="${file.jarVersion}"
-displayName="ExampleMod"
-credits="The ExampleMod dev team"
-authors="ExampleModAuthor"
-description='''
-Example mod that uses Kotlin for Forge.
+modId = "slimesnsteam"
+version = "${version}"
+displayName = "Slimes 'n' Steam"
+credits = "Kamefrede, Adrian & BumbleDani"
+authors = "Kamefrede"
+description = '''
+Steampunk automation and slime husbandry mod
 '''
-[[dependencies.examplemod]]
-    modId="forge"
-    mandatory=true
-    versionRange="[31.2,)"
-    ordering="NONE"
-    side="BOTH"
-[[dependencies.examplemod]]
-    modId="minecraft"
-    mandatory=true
-    versionRange="[1.16.3]"
-    ordering="NONE"
-    side="BOTH"
+
+[[dependencies.slimesnsteam]]
+modId = "forge"
+mandatory = true
+versionRange = "[34.0,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.slimesnsteam]]
+modId = "minecraft"
+mandatory = true
+versionRange = "[1.16.3, 1.17)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.slimesnsteam]]
+modId = "patchouli"
+mandatory = true
+versionRange = "[1.16-45,)"
+side = "BOTH"
+
+[[dependencies.slimesnsteam]]
+modId = "curios"
+mandatory = true
+versionRange = "[1.16.3-4.0.1.0,)"
+ordering = "AFTER"
+side = "BOTH"
